@@ -1,1 +1,1 @@
-{"current_stocks": {"engine": 13, "chassis": 19, "cabin": 16}, "stocks": {"engine": 15, "chassis": 20, "cabin": 17}}
+{"current_stocks": {"engine": 13, "chassis": 19, "cabin": 12}, "refill_stock": {"engine": 15, "chassis": 20, "cabin": 17}, "company_stock": {"company_a": {"engine": 50, "chassis": 60}, "company_b": {"cabin": 55}}}

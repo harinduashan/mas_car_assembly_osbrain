@@ -6,9 +6,6 @@ from osbrain import run_agent
 from osbrain import run_nameserver
 
 
-JASON_FILE = None
-
-
 def messaging(agent, part, units):
     agent.log_info('Provide {}. Remains {}'.format(part, units))
 
@@ -20,20 +17,20 @@ def reply_units(agent, message):
     if message == "engine":
         data['current_stocks']['engine'] -= 1
         messaging(agent, message, data['current_stocks']['engine'])
-        if data['current_stocks']['engine'] == 12:
-            agent.log_info("Sent engine refill request")
+        if data['current_stocks']['engine'] == 7:
+            agent.log_info("Refill Required --> Engine")
             agent.send('company_a', 'engine_refill')
     elif message == "chassis":
         data['current_stocks']['chassis'] -= 1
         messaging(agent, message, data['current_stocks']['chassis'])
-        if data['current_stocks']['chassis'] == 12:
-            agent.log_info("Sent chassis refill request")
+        if data['current_stocks']['chassis'] == 11:
+            agent.log_info("Refill Required --> Chassis")
             agent.send('company_a', 'chassis_refill')
     elif message == "cabin":
         data['current_stocks']['cabin'] -= 1
-        # messaging(agent, message, data['current_stocks']['cabin'])
+        messaging(agent, message, data['current_stocks']['cabin'])
         if data['current_stocks']['cabin'] == 10:
-            # agent.log_info("Sent cabin refill request")
+            agent.log_info("Refill Required --> Cabin")
             agent.send('company_b', 'refill')
     else:
         agent.log_warning("No parts registered: {}".format(message))
@@ -45,7 +42,7 @@ def reply_units(agent, message):
 
 def reply_inspection(agent, message):
     result = random.choice(['good', 'moderate', 'considerable', 'bad'])
-    agent.log_info("Test results : {}".format(result))
+    agent.log_info("Inspection --> {}".format(result))
     if result in ['good', 'moderate']:
         return 1
     return 0
@@ -53,21 +50,22 @@ def reply_inspection(agent, message):
 
 def refill_main_parts_late(agent, message):
     if message == "engine_refill":
-        agent.log_info("Order request to fill engine. Will take 10 hours...")
-        time.sleep(10)
+        times = random.randint(7, 13)
+        agent.log_info("Request Taken for Engine. Responding Time --> {} days.".format(times))
+        time.sleep(times)
     elif message == "chassis_refill":
-        agent.log_info("Order request to fill chassis. Will take 4 hours...")
-        time.sleep(4)
+        times = random.randint(4, 8)
+        agent.log_info("Request Taken for Chassis. Responding Time --> {} days.".format(times))
+        time.sleep(times)
+    return message
 
 
 def process_refill_engine(agent, message):
     with open('resources.json', 'r') as file:
         data = json.load(file)
 
-    agent.log_info("Receiving Order as {}".format(message))
-
-    data['current_stocks']['engine'] = data['stocks']['engine']
-    agent.log_info("Engine Process completed with {}".format(data['current_stocks']['cabin']))
+    data['current_stocks']['engine'] = data['refill_stock']['engine']
+    agent.log_info("Order Completed --> Engine --> {} Stocks.".format(data['current_stocks']['engine']))
     with open('resources.json', 'w') as output_file:
         json.dump(data, output_file)
 
@@ -76,17 +74,16 @@ def process_refill_chassis(agent, message):
     with open('resources.json', 'r') as file:
         data = json.load(file)
 
-    agent.log_info("Receiving Order as {}".format(message))
-
-    data['current_stocks']['chassis'] = data['stocks']['chassis']
-    agent.log_info("Chassis Process completed with {}".format(data['current_stocks']['chassis']))
+    data['current_stocks']['chassis'] = data['refill_stock']['chassis']
+    agent.log_info("Order Completed --> Chassis --> {} Stocks.".format(data['current_stocks']['chassis']))
     with open('resources.json', 'w') as output_file:
         json.dump(data, output_file)
 
 
 def refill_cabins_late(agent, message):
-    agent.log_info("Order request to do {}".format(message))
-    time.sleep(2)
+    times = random.randint(1, 4)
+    agent.log_info("Request Taken for Cabin. Responding Time --> {} days.".format(times))
+    time.sleep(times)
     return message
 
 
@@ -94,15 +91,23 @@ def process_refill_cabin(agent, message):
     with open('resources.json', 'r') as file:
         data = json.load(file)
 
-    agent.log_info("Receiving Order as {}".format(message))
-
-    data['current_stocks']['cabin'] = data['stocks']['cabin']
-    agent.log_info("Cabin Process completed with {}".format(data['current_stocks']['cabin']))
+    data['current_stocks']['cabin'] = data['refill_stock']['cabin']
+    agent.log_info("Order Completed --> Cabin --> {} Stocks.".format(data['current_stocks']['cabin']))
     with open('resources.json', 'w') as output_file:
         json.dump(data, output_file)
 
 
 if __name__ == '__main__':
+
+    # Get Json
+    with open('resources.json', 'r') as json_file:
+        _json = json.load(json_file)
+    _json['current_stocks']['engine'] = 15
+    _json['current_stocks']['chassis'] = 20
+    _json['current_stocks']['cabin'] = 17
+
+    with open('resources.json', 'w') as write_json:
+        json.dump(_json, write_json)
 
     # System deployment
     ns = run_nameserver()
@@ -134,6 +139,15 @@ if __name__ == '__main__':
 
     REQ_UNITS = 10
     current_units = 0
+    product_line.log_info("---------------------------------------------------")
+    product_line.log_info("Welcome to the Toyota Car Production")
+    product_line.log_info("---------------------------------------------------\n")
+    time.sleep(1)
+    product_line.log_info("Requirement")
+    product_line.log_info("Number of Cars to be finished at the month : {}".format(REQ_UNITS))
+    product_line.log_info("---------------------------------------------------\n")
+    time.sleep(1)
+    product_line.log_info("Start the Production Line\n")
     while current_units < REQ_UNITS:
         product_line.send('engine', 'engine')
         reply_by_engine = product_line.recv('engine')
@@ -154,5 +168,9 @@ if __name__ == '__main__':
         total_units = reply_by_engine + reply_by_chassis + reply_by_cabin + reply_by_inspector
         if total_units == 4:
             current_units += 1
+            product_line.log_info("---------------------------------------------------")
+            product_line.log_info("Completion of Car Assembly : {}/{}".format(current_units, REQ_UNITS))
+            product_line.log_info("---------------------------------------------------\n")
+            time.sleep(1)
 
     ns.shutdown()
